@@ -1,0 +1,100 @@
+/* Дополнительные стили для приложения */
+
+.task-card {
+    transition: all 0.3s ease;
+    border: 1px solid #dee2e6;
+}
+
+.task-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.priority-high {
+    border-left: 4px solid #dc3545 !important;
+}
+
+.priority-medium {
+    border-left: 4px solid #ffc107 !important;
+}
+
+.priority-low {
+    border-left: 4px solid #28a745 !important;
+}
+
+.status-pending {
+    background-color: #f8f9fa;
+}
+
+.status-in-progress {
+    background-color: #e3f2fd;
+}
+
+.status-completed {
+    background-color: #e8f5e8;
+}
+
+.status-cancelled {
+    background-color: #ffebee;
+}
+
+.notification-badge {
+    position: relative;
+}
+
+.notification-badge::after {
+    content: '';
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    width: 10px;
+    height: 10px;
+    background-color: #dc3545;
+    border-radius: 50%;
+    display: none;
+}
+
+.notification-badge.has-notifications::after {
+    display: block;
+}
+
+.toast-container {
+    z-index: 9999;
+}
+
+/* Анимации */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .task-card .btn-group-vertical {
+        flex-direction: row;
+    }
+    
+    .task-card .btn-group-vertical .btn {
+        margin-bottom: 0.25rem;
+    }
+}
+
+/* Темная тема (опционально) */
+@media (prefers-color-scheme: dark) {
+    .card {
+        background-color: #2d3748;
+        border-color: #4a5568;
+    }
+    
+    .card-body {
+        color: #e2e8f0;
+    }
+    
+    .text-muted {
+        color: #a0aec0 !important;
+    }
+}

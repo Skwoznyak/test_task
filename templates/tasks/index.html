@@ -1,0 +1,599 @@
+{% extends 'base.html' %}
+
+{% block title %}Главная - Управление задачами{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="fas fa-tasks"></i> Мои задачи</h2>
+            <button class="btn btn-primary" onclick="showCreateTaskModal()">
+                <i class="fas fa-plus"></i> Создать задачу
+            </button>
+        </div>
+
+        <!-- Фильтры -->
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <select class="form-select" id="status-filter" onchange="filterTasks()">
+                    <option value="">Все статусы</option>
+                    <option value="pending">В ожидании</option>
+                    <option value="in_progress">В работе</option>
+                    <option value="completed">Завершена</option>
+                    <option value="cancelled">Отменена</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="priority-filter" onchange="filterTasks()">
+                    <option value="">Все приоритеты</option>
+                    <option value="low">Низкий</option>
+                    <option value="medium">Средний</option>
+                    <option value="high">Высокий</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-outline-secondary" onclick="showOverdueTasks()">
+                    <i class="fas fa-exclamation-triangle"></i> Просроченные
+                </button>
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-outline-primary" onclick="refreshTasks()">
+                    <i class="fas fa-sync"></i> Обновить
+                </button>
+            </div>
+        </div>
+
+        <!-- Список задач -->
+        <div id="tasks-container">
+            <div class="text-center">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Загрузка...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-pie"></i> Статистика</h5>
+            </div>
+            <div class="card-body">
+                <div id="stats-container">
+                    <div class="text-center">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5><i class="fas fa-list"></i> Списки задач</h5>
+            </div>
+            <div class="card-body">
+                <div id="task-lists-container">
+                    <div class="text-center">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно создания задачи -->
+<div class="modal fade" id="createTaskModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Создать задачу</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="create-task-form">
+                    <div class="mb-3">
+                        <label for="task-title" class="form-label">Название *</label>
+                        <input type="text" class="form-control" id="task-title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="task-description" class="form-label">Описание</label>
+                        <textarea class="form-control" id="task-description" rows="3"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="task-list" class="form-label">Список задач *</label>
+                                <select class="form-select" id="task-list" required>
+                                    <option value="">Выберите список</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="assigned-to" class="form-label">Исполнитель *</label>
+                                <select class="form-select" id="assigned-to" required>
+                                    <option value="">Выберите исполнителя</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="task-priority" class="form-label">Приоритет</label>
+                                <select class="form-select" id="task-priority">
+                                    <option value="medium">Средний</option>
+                                    <option value="low">Низкий</option>
+                                    <option value="high">Высокий</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="due-date" class="form-label">Срок выполнения</label>
+                                <input type="datetime-local" class="form-control" id="due-date">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="createTask()">Создать</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно редактирования задачи -->
+<div class="modal fade" id="editTaskModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Редактировать задачу</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-task-form">
+                    <input type="hidden" id="edit-task-id">
+                    <div class="mb-3">
+                        <label for="edit-task-title" class="form-label">Название *</label>
+                        <input type="text" class="form-control" id="edit-task-title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-task-description" class="form-label">Описание</label>
+                        <textarea class="form-control" id="edit-task-description" rows="3"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit-assigned-to" class="form-label">Исполнитель *</label>
+                                <select class="form-select" id="edit-assigned-to" required>
+                                    <option value="">Выберите исполнителя</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit-task-status" class="form-label">Статус</label>
+                                <select class="form-select" id="edit-task-status">
+                                    <option value="pending">В ожидании</option>
+                                    <option value="in_progress">В работе</option>
+                                    <option value="completed">Завершена</option>
+                                    <option value="cancelled">Отменена</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit-task-priority" class="form-label">Приоритет</label>
+                                <select class="form-select" id="edit-task-priority">
+                                    <option value="low">Низкий</option>
+                                    <option value="medium">Средний</option>
+                                    <option value="high">Высокий</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit-due-date" class="form-label">Срок выполнения</label>
+                                <input type="datetime-local" class="form-control" id="edit-due-date">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="updateTask()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let tasks = [];
+let taskLists = [];
+let users = [];
+
+// Загрузка данных при инициализации
+document.addEventListener('DOMContentLoaded', function() {
+    loadTasks();
+    loadTaskLists();
+    loadUsers();
+    loadStats();
+});
+
+function loadTasks() {
+    fetch('/api/tasks/my_tasks/')
+        .then(response => response.json())
+        .then(data => {
+            tasks = data;
+            renderTasks(data);
+        })
+        .catch(error => {
+            console.error('Error loading tasks:', error);
+            showToast('Ошибка загрузки задач', 'danger');
+        });
+}
+
+function loadTaskLists() {
+    fetch('/api/task-lists/')
+        .then(response => response.json())
+        .then(data => {
+            taskLists = data;
+            renderTaskLists(data);
+        })
+        .catch(error => {
+            console.error('Error loading task lists:', error);
+        });
+}
+
+function loadUsers() {
+    fetch('/api/users/')
+        .then(response => response.json())
+        .then(data => {
+            users = data;
+        })
+        .catch(error => {
+            console.error('Error loading users:', error);
+        });
+}
+
+function loadStats() {
+    fetch('/api/tasks/my_tasks/')
+        .then(response => response.json())
+        .then(data => {
+            const stats = calculateStats(data);
+            renderStats(stats);
+        })
+        .catch(error => {
+            console.error('Error loading stats:', error);
+        });
+}
+
+function calculateStats(tasks) {
+    const total = tasks.length;
+    const completed = tasks.filter(t => t.status === 'completed').length;
+    const inProgress = tasks.filter(t => t.status === 'in_progress').length;
+    const pending = tasks.filter(t => t.status === 'pending').length;
+    const overdue = tasks.filter(t => t.is_overdue).length;
+    
+    return { total, completed, inProgress, pending, overdue };
+}
+
+function renderStats(stats) {
+    const container = document.getElementById('stats-container');
+    container.innerHTML = `
+        <div class="row text-center">
+            <div class="col-6">
+                <div class="h4 text-primary">${stats.total}</div>
+                <div class="small text-muted">Всего</div>
+            </div>
+            <div class="col-6">
+                <div class="h4 text-success">${stats.completed}</div>
+                <div class="small text-muted">Выполнено</div>
+            </div>
+        </div>
+        <hr>
+        <div class="row text-center">
+            <div class="col-4">
+                <div class="h5 text-warning">${stats.inProgress}</div>
+                <div class="small text-muted">В работе</div>
+            </div>
+            <div class="col-4">
+                <div class="h5 text-info">${stats.pending}</div>
+                <div class="small text-muted">Ожидание</div>
+            </div>
+            <div class="col-4">
+                <div class="h5 text-danger">${stats.overdue}</div>
+                <div class="small text-muted">Просрочено</div>
+            </div>
+        </div>
+    `;
+}
+
+function renderTaskLists(lists) {
+    const container = document.getElementById('task-lists-container');
+    if (lists.length === 0) {
+        container.innerHTML = '<p class="text-muted">Нет списков задач</p>';
+        return;
+    }
+    
+    let html = '';
+    lists.forEach(list => {
+        html += `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                    <strong>${list.name}</strong>
+                    <br><small class="text-muted">${list.task_count} задач</small>
+                </div>
+                <button class="btn btn-sm btn-outline-primary" onclick="createTaskInList(${list.id})">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+        `;
+    });
+    container.innerHTML = html;
+}
+
+function renderTasks(tasksToRender) {
+    const container = document.getElementById('tasks-container');
+    
+    if (tasksToRender.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted"><i class="fas fa-inbox fa-3x mb-3"></i><p>Нет задач</p></div>';
+        return;
+    }
+    
+    let html = '';
+    tasksToRender.forEach(task => {
+        const statusClass = `status-${task.status}`;
+        const priorityClass = `priority-${task.priority}`;
+        const isOverdue = task.is_overdue;
+        
+        const statusIcons = {
+            'pending': '⏳',
+            'in_progress': '🔄',
+            'completed': '✅',
+            'cancelled': '❌'
+        };
+        
+        const priorityIcons = {
+            'low': '🟢',
+            'medium': '🟡',
+            'high': '🔴'
+        };
+        
+        const dueDate = task.due_date ? new Date(task.due_date).toLocaleString() : 'Не указан';
+        
+        html += `
+            <div class="card task-card mb-3 ${statusClass} ${priorityClass} ${isOverdue ? 'border-danger' : ''}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <h5 class="card-title">
+                                ${statusIcons[task.status]} ${priorityIcons[task.priority]} ${task.title}
+                                ${isOverdue ? '<span class="badge bg-danger ms-2">Просрочено</span>' : ''}
+                            </h5>
+                            <p class="card-text">${task.description || 'Без описания'}</p>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <small class="text-muted">
+                                        <i class="fas fa-user"></i> Создатель: ${task.created_by.username}<br>
+                                        <i class="fas fa-calendar"></i> Срок: ${dueDate}
+                                    </small>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">
+                                        <i class="fas fa-list"></i> Список: ${task.task_list.name}<br>
+                                        <i class="fas fa-clock"></i> Создана: ${new Date(task.created_at).toLocaleString()}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="btn-group-vertical">
+                            <button class="btn btn-sm btn-outline-primary" onclick="editTask(${task.id})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            ${task.status !== 'completed' ? `
+                                <button class="btn btn-sm btn-outline-success" onclick="markTaskCompleted(${task.id})">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function filterTasks() {
+    const statusFilter = document.getElementById('status-filter').value;
+    const priorityFilter = document.getElementById('priority-filter').value;
+    
+    let filteredTasks = tasks;
+    
+    if (statusFilter) {
+        filteredTasks = filteredTasks.filter(task => task.status === statusFilter);
+    }
+    
+    if (priorityFilter) {
+        filteredTasks = filteredTasks.filter(task => task.priority === priorityFilter);
+    }
+    
+    renderTasks(filteredTasks);
+}
+
+function showOverdueTasks() {
+    const overdueTasks = tasks.filter(task => task.is_overdue);
+    renderTasks(overdueTasks);
+    
+    // Сбрасываем фильтры
+    document.getElementById('status-filter').value = '';
+    document.getElementById('priority-filter').value = '';
+}
+
+function refreshTasks() {
+    loadTasks();
+    loadStats();
+    showToast('Задачи обновлены', 'success');
+}
+
+function showCreateTaskModal() {
+    // Заполняем списки
+    const taskListSelect = document.getElementById('task-list');
+    taskListSelect.innerHTML = '<option value="">Выберите список</option>';
+    taskLists.forEach(list => {
+        taskListSelect.innerHTML += `<option value="${list.id}">${list.name}</option>`;
+    });
+    
+    const assignedToSelect = document.getElementById('assigned-to');
+    assignedToSelect.innerHTML = '<option value="">Выберите исполнителя</option>';
+    users.forEach(user => {
+        assignedToSelect.innerHTML += `<option value="${user.id}">${user.username}</option>`;
+    });
+    
+    const modal = new bootstrap.Modal(document.getElementById('createTaskModal'));
+    modal.show();
+}
+
+function createTask() {
+    const formData = {
+        title: document.getElementById('task-title').value,
+        description: document.getElementById('task-description').value,
+        task_list: document.getElementById('task-list').value,
+        assigned_to: document.getElementById('assigned-to').value,
+        priority: document.getElementById('task-priority').value,
+        due_date: document.getElementById('due-date').value
+    };
+    
+    if (!formData.title || !formData.task_list || !formData.assigned_to) {
+        showToast('Заполните обязательные поля', 'warning');
+        return;
+    }
+    
+    fetch('/api/tasks/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.id) {
+            showToast('Задача создана', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('createTaskModal')).hide();
+            document.getElementById('create-task-form').reset();
+            loadTasks();
+            loadStats();
+        } else {
+            showToast('Ошибка создания задачи', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error creating task:', error);
+        showToast('Ошибка создания задачи', 'danger');
+    });
+}
+
+function editTask(taskId) {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    
+    document.getElementById('edit-task-id').value = task.id;
+    document.getElementById('edit-task-title').value = task.title;
+    document.getElementById('edit-task-description').value = task.description;
+    document.getElementById('edit-task-status').value = task.status;
+    document.getElementById('edit-task-priority').value = task.priority;
+    document.getElementById('edit-due-date').value = task.due_date ? new Date(task.due_date).toISOString().slice(0, 16) : '';
+    
+    // Заполняем список исполнителей
+    const assignedToSelect = document.getElementById('edit-assigned-to');
+    assignedToSelect.innerHTML = '<option value="">Выберите исполнителя</option>';
+    users.forEach(user => {
+        const selected = user.id === task.assigned_to.id ? 'selected' : '';
+        assignedToSelect.innerHTML += `<option value="${user.id}" ${selected}>${user.username}</option>`;
+    });
+    
+    const modal = new bootstrap.Modal(document.getElementById('editTaskModal'));
+    modal.show();
+}
+
+function updateTask() {
+    const taskId = document.getElementById('edit-task-id').value;
+    const formData = {
+        title: document.getElementById('edit-task-title').value,
+        description: document.getElementById('edit-task-description').value,
+        assigned_to: document.getElementById('edit-assigned-to').value,
+        status: document.getElementById('edit-task-status').value,
+        priority: document.getElementById('edit-task-priority').value,
+        due_date: document.getElementById('edit-due-date').value
+    };
+    
+    if (!formData.title || !formData.assigned_to) {
+        showToast('Заполните обязательные поля', 'warning');
+        return;
+    }
+    
+    fetch(`/api/tasks/${taskId}/`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.id) {
+            showToast('Задача обновлена', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('editTaskModal')).hide();
+            loadTasks();
+            loadStats();
+        } else {
+            showToast('Ошибка обновления задачи', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating task:', error);
+        showToast('Ошибка обновления задачи', 'danger');
+    });
+}
+
+function markTaskCompleted(taskId) {
+    fetch(`/api/tasks/${taskId}/mark_completed/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        showToast('Задача отмечена как выполненная', 'success');
+        loadTasks();
+        loadStats();
+    })
+    .catch(error => {
+        console.error('Error marking task completed:', error);
+        showToast('Ошибка обновления задачи', 'danger');
+    });
+}
+
+function createTaskInList(listId) {
+    showCreateTaskModal();
+    document.getElementById('task-list').value = listId;
+}
+</script>
+{% endblock %}

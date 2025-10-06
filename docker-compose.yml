@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: task_manager
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DEBUG=True
+      - DATABASE_URL=postgresql://postgres:password@db:5432/task_manager
+      - REDIS_URL=redis://redis:6379/0
+
+  celery:
+    build: .
+    command: celery -A task_manager worker --loglevel=info
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DEBUG=True
+      - DATABASE_URL=postgresql://postgres:password@db:5432/task_manager
+      - REDIS_URL=redis://redis:6379/0
+
+  telegram-bot:
+    build: .
+    command: python run_telegram_bot.py
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DEBUG=True
+      - DATABASE_URL=postgresql://postgres:password@db:5432/task_manager
+      - REDIS_URL=redis://redis:6379/0
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+
+volumes:
+  postgres_data:
